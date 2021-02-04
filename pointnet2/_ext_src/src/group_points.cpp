@@ -1,5 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates.
-// 
+//
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
@@ -33,7 +33,7 @@ at::Tensor group_points(at::Tensor points, at::Tensor idx) {
                                 idx.size(1), idx.size(2), points.data<float>(),
                                 idx.data<int>(), output.data<float>());
   } else {
-    AT_CHECK(false, "CPU not supported");
+    AT_ASSERT(false, "CPU not supported");
   }
 
   return output;
@@ -58,7 +58,7 @@ at::Tensor group_points_grad(at::Tensor grad_out, at::Tensor idx, const int n) {
         grad_out.size(0), grad_out.size(1), n, idx.size(1), idx.size(2),
         grad_out.data<float>(), idx.data<int>(), output.data<float>());
   } else {
-    AT_CHECK(false, "CPU not supported");
+    AT_ASSERT(false, "CPU not supported");
   }
 
   return output;

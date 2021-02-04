@@ -34,6 +34,7 @@ def flip_axis_to_depth(pc):
     pc2[...,2] *= -1
     return pc2
 
+
 def softmax(x):
     ''' Numpy function for softmax'''
     shape = x.shape

@@ -64,7 +64,7 @@ class VoteNet(nn.Module):
 
         # Vote aggregation and detection
         self.pnet = ProposalModule(num_class, num_heading_bin, num_size_cluster,
-            mean_size_arr, num_proposal, sampling)
+                                   mean_size_arr, num_proposal, sampling)
 
     def forward(self, inputs):
         """ Forward pass of the network

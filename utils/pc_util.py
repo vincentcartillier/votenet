@@ -194,7 +194,10 @@ def read_ply(filename):
     """ read XYZ point cloud from filename PLY file """
     plydata = PlyData.read(filename)
     pc = plydata['vertex'].data
-    pc_array = np.array([[x, y, z] for x,y,z in pc])
+    if len(pc[0]) == 3:
+        pc_array = np.array([[x, y, z] for x,y,z in pc])
+    elif len(pc[0]) == 6:
+        pc_array = np.array([[x, y, z, r, g, b] for x,y,z,r,g,b in pc])
     return pc_array
 
 
@@ -396,7 +399,6 @@ def write_oriented_bbox(scene_bbox, out_filename):
         out_filename: (string) filename
     """
     def heading2rotmat(heading_angle):
-        pass
         rotmat = np.zeros((3,3))
         rotmat[2,2] = 1
         cosval = np.cos(heading_angle)
@@ -434,7 +436,6 @@ def write_oriented_bbox_color(scene_bbox, colors, out_filename):
         out_filename: (string) filename
     """
     def heading2rotmat(heading_angle):
-        pass
         rotmat = np.zeros((3,3))
         rotmat[2,2] = 1
         cosval = np.cos(heading_angle)
@@ -451,11 +452,6 @@ def write_oriented_bbox_color(scene_bbox, colors, out_filename):
         trns[0:3,0:3] = heading2rotmat(box[6])
         box_trimesh_fmt = trimesh.creation.box(lengths, trns)
         box_trimesh_fmt.visual.face_colors=np.repeat(np.expand_dims(np.array(color),0),12,axis=0)
-        #print(box_trimesh_fmt.visual.face_colors.shape)
-        #a = np.repeat(np.expand_dims(np.expand_dims(np.array(color),0),0),12,axis=1)
-        #print(a.shape)
-        #box_trimesh_fmt.visual.face_colors=a
-        #box_trimesh_fmt.visual.vertex_colors=np.repeat(np.expand_dims(np.expand_dims(np.array(color),0),0),8,axis=1) 
         box_trimesh_fmt.visual.vertex_colors=np.repeat(np.expand_dims(np.array(color),0),8,axis=0) 
         return box_trimesh_fmt
 

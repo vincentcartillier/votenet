@@ -7,7 +7,7 @@ from tqdm import tqdm
 input_dir = 'data/point_clouds'
 output_dir = 'data/preprocessed_point_clouds'
 
-resolution = 0.01
+resolution = 0.03
 
 files = [x for x in os.listdir(input_dir) if x.endswith('.ply')]
 

@@ -105,11 +105,13 @@ class ProposalModule(nn.Module):
         end_points['aggregated_vote_inds'] = sample_inds # (batch_size, num_proposal,) # should be 0,1,2,...,num_proposal
 
         # --------- PROPOSAL GENERATION ---------
-        net = F.relu(self.bn1(self.conv1(features))) 
-        net = F.relu(self.bn2(self.conv2(net))) 
+        net_conv1 = F.relu(self.bn1(self.conv1(features))) 
+        net_conv2 = self.bn2(self.conv2(net_conv1))
+        net = F.relu(net_conv2) 
         net = self.conv3(net) # (batch_size, 2+3+num_heading_bin*2+num_size_cluster*4, num_proposal)
 
         end_points = decode_scores(net, end_points, self.num_class, self.num_heading_bin, self.num_size_cluster, self.mean_size_arr)
+        end_points['proposal_lastlayer_features'] = net_conv2
         return end_points
 
 if __name__=='__main__':

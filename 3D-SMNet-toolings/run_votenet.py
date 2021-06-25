@@ -1,5 +1,5 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
-# 
+#
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
@@ -32,51 +32,20 @@ from pc_util import write_oriented_bbox
 from pc_util import write_oriented_bbox_color
 from ap_helper import parse_predictions
 
+from semantic_utils import label_colours
 
+noisy = False
 sample_id = 'stage_0.scene_apt_0.id_0'
-pc_path = 'data/point_clouds/pc_{}.json'.format(sample_id)
-output_dir = 'data/votenet_results_scannet/{}'.format(sample_id)
 
-label_colours = [(106, 137, 204, 255),
-                 (230, 126, 34, 255), 
-                 (7, 153, 146, 255),  
-                 (248, 194, 145, 255),
-                 (76, 209, 55, 255),  
-                 (255, 168, 1, 255),  
-                 (184, 233, 148, 255),
-                 (39, 174, 96, 255),  
-                 (229, 80, 57, 255),  
-                 (30, 55, 153, 255),  
-                 (24, 220, 255, 255), 
-                 (234, 32, 39, 255),
-                 (23, 197, 62, 255), 
-                 (141, 168, 145, 255), 
-                 (142, 151, 136, 255),
-                 (115, 201, 77, 255), 
-                 (100, 216, 255, 255), 
-                 (57, 156, 36, 255),
-                 (88, 108, 129, 255), 
-                 (105, 129, 112, 255), 
-                 (42, 137, 126, 255),
-                 (155, 108, 249, 255), 
-                 (166, 148, 143, 255), 
-                 (81, 91, 87, 255),
-                 (100, 124, 51, 255), 
-                 (73, 131, 121, 255), 
-                 (157, 210, 220, 255),
-                 (134, 181, 60, 255), 
-                 (221, 223, 147, 255), 
-                 (123, 108, 131, 255),
-                 (161, 66, 179, 255), 
-                 (163, 221, 160, 255), 
-                 (31, 146, 98, 255),
-                 (99, 121, 30, 255), 
-                 (49, 89, 240, 255), 
-                 (116, 108, 9, 255),
-                 (161, 176, 169, 255), 
-                 (80, 29, 135, 255), 
-                 (177, 105, 197, 255),
-                ]
+if noisy:
+    pc_path = 'data/preprocessed_point_clouds_noisy/pc_{}.ply'.format(sample_id)
+    output_dir = 'data/votenet_results_{}_noisy/{}'.format(FLAGS.dataset,
+                                                            sample_id)
+else:
+    pc_path = 'data/preprocessed_point_clouds/pc_{}.ply'.format(sample_id)
+    output_dir = 'data/votenet_results_{}/{}'.format(FLAGS.dataset,
+                                                     sample_id)
+
 
 def preprocess_point_cloud(point_cloud):
     ''' Prepare the numpy point cloud (N,3) for forward pass '''
@@ -89,37 +58,44 @@ def preprocess_point_cloud(point_cloud):
     return pc
 
 if __name__=='__main__':
-    
+
     # Set file paths and dataset config
-    demo_dir = os.path.join(BASE_DIR, 'demo_files') 
+    demo_dir = os.path.join(BASE_DIR, 'demo_files')
     if FLAGS.dataset == 'sunrgbd':
         sys.path.append(os.path.join(ROOT_DIR, '../sunrgbd'))
         from sunrgbd_detection_dataset import DC # dataset config
         checkpoint_path = os.path.join(demo_dir, 'pretrained_votenet_on_sunrgbd.tar')
+        #DATASET_CONFIG = SunrgbdDatasetConfig()
         #pc_path = os.path.join(demo_dir, 'input_pc_sunrgbd.ply')
     elif FLAGS.dataset == 'scannet':
         sys.path.append(os.path.join(ROOT_DIR, '../scannet'))
         from scannet_detection_dataset import DC # dataset config
         checkpoint_path = os.path.join(demo_dir, 'pretrained_votenet_on_scannet.tar')
+        #DATASET_CONFIG = ScannetDatasetConfig()
         #pc_path = os.path.join(demo_dir, 'input_pc_scannet.ply')
     else:
         print('Unkown dataset %s. Exiting.'%(DATASET))
         exit(-1)
 
-    eval_config_dict = {'remove_empty_box': True, 'use_3d_nms': True, 'nms_iou': 0.25,
-        'use_old_type_nms': False, 'cls_nms': False, 'per_class_proposal': False,
-        'conf_thresh': 0.5, 'dataset_config': DC}
+    eval_config_dict = {'remove_empty_box': True,
+                        'use_3d_nms': True,
+                        'nms_iou': 0.25,
+                        'use_old_type_nms': False,
+                        'cls_nms': False,
+                        'per_class_proposal': False,
+                        'conf_thresh': 0.5,
+                        'dataset_config': DC}
 
     # Init the model and optimzier
     MODEL = importlib.import_module('votenet') # import network module
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     net = MODEL.VoteNet(num_proposal=256, input_feature_dim=1, vote_factor=1,
-        sampling='seed_fps', num_class=DC.num_class,
-        num_heading_bin=DC.num_heading_bin,
-        num_size_cluster=DC.num_size_cluster,
-        mean_size_arr=DC.mean_size_arr).to(device)
+                        sampling='seed_fps', num_class=DC.num_class,
+                        num_heading_bin=DC.num_heading_bin,
+                        num_size_cluster=DC.num_size_cluster,
+                        mean_size_arr=DC.mean_size_arr).to(device)
     print('Constructed model.')
-    
+
     # Load checkpoint
     optimizer = optim.Adam(net.parameters(), lr=0.001)
     checkpoint = torch.load(checkpoint_path)
@@ -127,18 +103,22 @@ if __name__=='__main__':
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     epoch = checkpoint['epoch']
     print("Loaded checkpoint %s (epoch: %d)"%(checkpoint_path, epoch))
-   
-    # Load and preprocess input point cloud 
+
+    # Load and preprocess input point cloud
     net.eval() # set model to eval mode (for bn and dp)
-    #point_cloud = read_ply(pc_path)
+    point_cloud = read_ply(pc_path)
+    point_cloud = point_cloud[:,:3]
     #TODO: load preprocessed point cloud
-    point_cloud = json.load(open(pc_path, 'r'))
-    point_cloud = np.array(point_cloud)
+    #point_cloud = json.load(open(pc_path, 'r'))
+    #point_cloud = o3d.io.read_point_cloud(os.path.join(input_dir,
+    #                                                   file)
+    #                                     )
+    #point_cloud = np.array(point_cloud)
     #point_cloud[...,[0,1,2]] = point_cloud[...,[0,2,1]]
     #point_cloud[...,1] *= 1
     pc = preprocess_point_cloud(point_cloud)
     print('Loaded point cloud data: %s'%(pc_path))
-   
+
     # Model inference
     inputs = {'point_clouds': torch.from_numpy(pc).to(device)}
     tic = time.time()
@@ -149,16 +129,15 @@ if __name__=='__main__':
     end_points['point_clouds'] = inputs['point_clouds']
     pred_map_cls = parse_predictions(end_points, eval_config_dict)
     print('Finished detection. %d object detected.'%(len(pred_map_cls[0])))
-  
-    #dump_dir = os.path.join(output_dir, '%s_results'%(FLAGS.dataset))
+
     #dump_dir = os.path.join(output_dir, '3d_detection_results')
-    #if not os.path.exists(dump_dir): os.mkdir(dump_dir) 
+    #if not os.path.exists(dump_dir): os.mkdir(dump_dir)
     #MODEL.dump_results(end_points, dump_dir, DC, True)
     #print('Dumped detection results to folder %s'%(dump_dir))
-    
+
     #Save object-based map
     from dump_helper import softmax
-    if not os.path.exists(output_dir): os.mkdir(output_dir) 
+    if not os.path.exists(output_dir): os.mkdir(output_dir)
     seed_xyz = end_points['seed_xyz'].detach().cpu().numpy() # (B,num_seed,3)
     if 'vote_xyz' in end_points:
         aggregated_vote_xyz = end_points['aggregated_vote_xyz'].detach().cpu().numpy()
@@ -190,8 +169,11 @@ if __name__=='__main__':
             semantics = []
             colors = []
             for j in range(num_proposal):
-                obb = DC.param2obb(pred_center[i,j,0:3], pred_heading_class[i,j], pred_heading_residual[i,j],
-                                pred_size_class[i,j], pred_size_residual[i,j])
+                obb = DC.param2obb(pred_center[i,j,0:3],
+                                   pred_heading_class[i,j],
+                                   pred_heading_residual[i,j],
+                                   pred_size_class[i,j],
+                                   pred_size_residual[i,j])
                 obbs.append(obb)
                 semantics.append(pred_sem_cls[i,j])
                 colors.append(label_colours[pred_sem_cls[i,j]])
@@ -212,8 +194,114 @@ if __name__=='__main__':
                 write_oriented_bbox_color(obbs[pred_mask[i,:]==1,:],
                                           colors[pred_mask[i,:]==1,:],
                                           os.path.join(output_dir, '%06d_pred_nms_bbox.ply'%(idx_beg+i)))
-                write_oriented_bbox_color(obbs, 
-                                          colors, 
+                write_oriented_bbox_color(obbs,
+                                          colors,
                                           os.path.join(output_dir, '%06d_pred_bbox.ply'%(idx_beg+i)))
 
+"""
+    dump_dir = os.path.join(output_dir, '3d_detection_results')
+    if not os.path.exists(dump_dir): os.mkdir(dump_dir)
+    json.dump(end_points, open(os.path.join(dump_dir, 'outputs.json'), 'w'))
+    print('Dumped detection results to folder %s'%(dump_dir))
 
+
+
+    # save outputs
+    from ap_helper import APCalculator
+    from ap_helper import parse_predictions, parse_groundtruths
+
+    AP_IOU_THRESHOLDS [0.25, 0.5]
+
+    stat_dict = {}
+
+    ap_calculator_list = [APCalculator(iou_thresh, DATASET_CONFIG.class2type) \
+        for iou_thresh in AP_IOU_THRESHOLDS]
+
+    criterion = MODEL.get_loss
+
+    # add GT info to dictionary
+    for key in batch_data_label:
+        assert(key not in end_points)
+        end_points[key] = batch_data_label[key]
+
+    # INFO for LOSS computation
+    #compute vote loss
+    end_points['seed_xyz']
+    end_points['vote_xyz']
+    end_points['seed_inds']
+    end_points['vote_label_mask']
+    end_points['vote_label']
+    #compute objectness score
+    end_points['aggregated_vote_xyz']
+    end_points['center_label'][:,:,0:3]
+    end_points['objectness_scores']
+    #compute box and sem cls loss
+    end_points['object_assignment']
+    end_points['center']
+    end_points['center_label'][:,:,0:3]
+    end_points['box_label_mask']
+    end_points['objectness_label']
+    end_points['heading_class_label']
+    end_points['heading_scores']
+    end_points['heading_residual_label']
+    end_points['size_class_label']
+    end_points['size_scores']
+    end_points['size_residual_label']
+    end_points['size_residuals_normalized']
+    end_points['sem_cls_label']
+    end_points['sem_cls_scores']
+
+
+    #INFO for prediction parsing
+    end_points['center']
+    end_points['heading_scores']
+    end_points['heading_residuals']
+    end_points['size_scores']
+    end_points['size_residuals']
+    end_points['sem_cls_scores']
+    end_points['sem_cls_scores']
+    end_points['point_clouds']
+    end_points['objectness_scores']
+
+
+    #INFO for GT parsing
+    center_label = end_points['center_label']
+    heading_class_label = end_points['heading_class_label']
+    heading_residual_label = end_points['heading_residual_label']
+    size_class_label = end_points['size_class_label']
+    size_residual_label = end_points['size_residual_label']
+    box_label_mask = end_points['box_label_mask']
+    sem_cls_label = end_points['sem_cls_label']
+
+
+
+    loss, end_points = criterion(end_points, DATASET_CONFIG)
+
+    # Accumulate statistics and print out
+    for key in end_points:
+        if 'loss' in key or 'acc' in key or 'ratio' in key:
+            if key not in stat_dict: stat_dict[key] = 0
+            stat_dict[key] += end_points[key].item()
+
+    batch_pred_map_cls = parse_predictions(end_points, CONFIG_DICT)
+    batch_gt_map_cls = parse_groundtruths(end_points, CONFIG_DICT)
+    for ap_calculator in ap_calculator_list:
+        ap_calculator.step(batch_pred_map_cls, batch_gt_map_cls)
+
+    # Log statistics
+    batch_idx = 0
+    for key in sorted(stat_dict.keys()):
+        log_string('eval mean %s: %f'%(key, stat_dict[key]/(float(batch_idx+1))))
+
+    # Evaluate average precision
+    for i, ap_calculator in enumerate(ap_calculator_list):
+        print('-'*10, 'iou_thresh: %f'%(AP_IOU_THRESHOLDS[i]), '-'*10)
+        metrics_dict = ap_calculator.compute_metrics()
+        for key in metrics_dict:
+            log_string('eval %s: %f'%(key, metrics_dict[key]))
+
+    mean_loss = stat_dict['loss']/float(batch_idx+1)
+    print('Mean loss: ', mean_loss)
+
+
+"""

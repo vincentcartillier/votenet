@@ -134,6 +134,21 @@ elif FLAGS.dataset == 'scannet':
     TEST_DATASET = ScannetDetectionDataset('val', num_points=NUM_POINT,
         augment=False,
         use_color=FLAGS.use_color, use_height=(not FLAGS.no_height))
+elif FLAGS.dataset == 'mp3d':
+    sys.path.append(os.path.join(ROOT_DIR, 'mp3d'))
+    from mp3d_detection_dataset import MP3DDetectionDataset, MAX_NUM_OBJ
+    from model_util_mp3d import MP3DDatasetConfig
+    DATASET_CONFIG = MP3DDatasetConfig()
+    TRAIN_DATASET = MP3DDetectionDataset('train', 
+                                         num_points=NUM_POINT,
+                                         augment=True,
+                                         use_color=FLAGS.use_color, 
+                                         use_height=(not FLAGS.no_height))
+    TEST_DATASET = MP3DDetectionDataset('val', 
+                                        num_points=NUM_POINT,
+                                        augment=False,
+                                        use_color=FLAGS.use_color, 
+                                        use_height=(not FLAGS.no_height))
 else:
     print('Unknown dataset %s. Exiting...'%(FLAGS.dataset))
     exit(-1)

@@ -21,10 +21,11 @@ from model_util_mp3d import rotate_aligned_boxes
 
 from model_util_mp3d import Mp3DDatasetConfig
 DC = Mp3DDatasetConfig()
+#TODO
 #MAX_NUM_OBJ = 64
 #MEAN_COLOR_RGB = np.array([109.8, 97.2, 83.8])
 
-class ScannetDetectionDataset(Dataset):
+class MP3DDetectionDataset(Dataset):
        
     def __init__(self, 
                  split_set='train', 

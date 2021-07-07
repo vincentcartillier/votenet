@@ -10,7 +10,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 ROOT_DIR = os.path.dirname(BASE_DIR)
 
-class Mp3DDatasetConfig(object):
+class MP3DDatasetConfig(object):
     def __init__(self):
         self.num_class = 15
         self.num_heading_bin = 1

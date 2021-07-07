@@ -161,7 +161,7 @@ print(len(TRAIN_DATALOADER), len(TEST_DATALOADER))
 
 # Init the model and optimzier
 MODEL = importlib.import_module(FLAGS.model) # import network module
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 num_input_channel = int(FLAGS.use_color)*3 + int(not FLAGS.no_height)*1
 
 if FLAGS.model == 'boxnet':
@@ -197,6 +197,13 @@ if CHECKPOINT_PATH is not None and os.path.isfile(CHECKPOINT_PATH):
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     start_epoch = checkpoint['epoch']
     log_string("-> loaded checkpoint %s (epoch: %d)"%(CHECKPOINT_PATH, start_epoch))
+
+
+if PRETRAIN_PATH is not None and os.path.isfile(PRETRAIN_PATH):
+    checkpoint = torch.load(PRETRAIN_PATH)
+    net.load_state_dict(checkpoint['model_state_dict'])
+    log_string("-> loaded pretrain weights %s "%(PRETRAIN_PATH))
+ 
 
 # Decay Batchnorm momentum from 0.5 to 0.999
 # note: pytorch's BN momentum (default 0.1)= 1 - tensorflow's BN momentum

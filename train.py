@@ -1,5 +1,5 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
-# 
+#
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
@@ -43,6 +43,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--model', default='votenet', help='Model file name [default: votenet]')
 parser.add_argument('--dataset', default='sunrgbd', help='Dataset name. sunrgbd or scannet. [default: sunrgbd]')
 parser.add_argument('--checkpoint_path', default=None, help='Model checkpoint path [default: None]')
+parser.add_argument('--pretrain_path', default='scannet_pretrained_weights_for_mp3d.pkl', help='Model pretrained weights path [default: None]')
 parser.add_argument('--log_dir', default='log', help='Dump dir to save model checkpoint [default: log]')
 parser.add_argument('--dump_dir', default=None, help='Dump dir to save sample outputs [default: None]')
 parser.add_argument('--num_point', type=int, default=20000, help='Point Number [default: 20000]')
@@ -70,6 +71,7 @@ BATCH_SIZE = FLAGS.batch_size
 NUM_POINT = FLAGS.num_point
 MAX_EPOCH = FLAGS.max_epoch
 BASE_LEARNING_RATE = FLAGS.learning_rate
+LR_PRETRAIN_DIV = 4.0
 BN_DECAY_STEP = FLAGS.bn_decay_step
 BN_DECAY_RATE = FLAGS.bn_decay_rate
 LR_DECAY_STEPS = [int(x) for x in FLAGS.lr_decay_steps.split(',')]
@@ -81,6 +83,7 @@ DUMP_DIR = FLAGS.dump_dir if FLAGS.dump_dir is not None else DEFAULT_DUMP_DIR
 DEFAULT_CHECKPOINT_PATH = os.path.join(LOG_DIR, 'checkpoint.tar')
 CHECKPOINT_PATH = FLAGS.checkpoint_path if FLAGS.checkpoint_path is not None \
     else DEFAULT_CHECKPOINT_PATH
+PRETRAIN_PATH = FLAGS.pretrain_path
 FLAGS.DUMP_DIR = DUMP_DIR
 
 # Prepare LOG_DIR and DUMP_DIR
@@ -105,7 +108,7 @@ def log_string(out_str):
     print(out_str)
 if not os.path.exists(DUMP_DIR): os.mkdir(DUMP_DIR)
 
-# Init datasets and dataloaders 
+# Init datasets and dataloaders
 def my_worker_init_fn(worker_id):
     np.random.seed(np.random.get_state()[1][0] + worker_id)
 
@@ -139,15 +142,15 @@ elif FLAGS.dataset == 'mp3d':
     from mp3d_detection_dataset import MP3DDetectionDataset, MAX_NUM_OBJ
     from model_util_mp3d import MP3DDatasetConfig
     DATASET_CONFIG = MP3DDatasetConfig()
-    TRAIN_DATASET = MP3DDetectionDataset('train', 
+    TRAIN_DATASET = MP3DDetectionDataset('train',
                                          num_points=NUM_POINT,
                                          augment=True,
-                                         use_color=FLAGS.use_color, 
+                                         use_color=FLAGS.use_color,
                                          use_height=(not FLAGS.no_height))
-    TEST_DATASET = MP3DDetectionDataset('val', 
+    TEST_DATASET = MP3DDetectionDataset('val',
                                         num_points=NUM_POINT,
                                         augment=False,
-                                        use_color=FLAGS.use_color, 
+                                        use_color=FLAGS.use_color,
                                         use_height=(not FLAGS.no_height))
 else:
     print('Unknown dataset %s. Exiting...'%(FLAGS.dataset))
@@ -186,7 +189,21 @@ net.to(device)
 criterion = MODEL.get_loss
 
 # Load the Adam optimizer
-optimizer = optim.Adam(net.parameters(), lr=BASE_LEARNING_RATE, weight_decay=FLAGS.weight_decay)
+#optimizer = optim.Adam(net.parameters(), lr=BASE_LEARNING_RATE, weight_decay=FLAGS.weight_decay)
+
+custom_layers = ['pnet.conv3.weight', 'pnet.conv3.bias']
+optimizer = torch.optim.SGD([
+                                {'params': [param for name, param in net.named_parameters() if not name in custom_layers]},
+                                {'params': [param for name, param in net.named_parameters() if name in custom_layers],
+                                 'lr': BASE_LEARNING_RATE}
+                            ],
+                            lr=BASE_LEARNING_RATE / LR_PRETRAIN_DIV,
+                            weight_decay=FLAGS.weight_decay)
+
+for param_group in optimizer.param_groups:
+    print(param_group['lr'])
+
+stop
 
 # Load checkpoint if there is any
 it = -1 # for the initialize value of `LambdaLR` and `BNMomentumScheduler`
@@ -197,13 +214,13 @@ if CHECKPOINT_PATH is not None and os.path.isfile(CHECKPOINT_PATH):
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     start_epoch = checkpoint['epoch']
     log_string("-> loaded checkpoint %s (epoch: %d)"%(CHECKPOINT_PATH, start_epoch))
-
-
-if PRETRAIN_PATH is not None and os.path.isfile(PRETRAIN_PATH):
+elif PRETRAIN_PATH is not None and os.path.isfile(PRETRAIN_PATH):
     checkpoint = torch.load(PRETRAIN_PATH)
     net.load_state_dict(checkpoint['model_state_dict'])
     log_string("-> loaded pretrain weights %s "%(PRETRAIN_PATH))
- 
+else:
+    pass
+
 
 # Decay Batchnorm momentum from 0.5 to 0.999
 # note: pytorch's BN momentum (default 0.1)= 1 - tensorflow's BN momentum
@@ -217,12 +234,12 @@ def get_current_lr(epoch):
     for i,lr_decay_epoch in enumerate(LR_DECAY_STEPS):
         if epoch >= lr_decay_epoch:
             lr *= LR_DECAY_RATES[i]
-    return lr
+    return lr / LR_PRETRAIN_DIV, lr
 
 def adjust_learning_rate(optimizer, epoch):
-    lr = get_current_lr(epoch)
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
+    lrs = get_current_lr(epoch)
+    for i, param_group in enumerate(optimizer.param_groups):
+        param_group['lr'] = lrs[i]
 
 # TFBoard Visualizers
 TRAIN_VISUALIZER = TfVisualizer(FLAGS, 'train')
@@ -250,7 +267,7 @@ def train_one_epoch():
         optimizer.zero_grad()
         inputs = {'point_clouds': batch_data_label['point_clouds']}
         end_points = net(inputs)
-        
+
         # Compute loss and gradients, update parameters.
         for key in batch_data_label:
             assert(key not in end_points)
@@ -284,7 +301,7 @@ def evaluate_one_epoch():
             print('Eval batch: %d'%(batch_idx))
         for key in batch_data_label:
             batch_data_label[key] = batch_data_label[key].to(device)
-        
+
         # Forward pass
         inputs = {'point_clouds': batch_data_label['point_clouds']}
         with torch.no_grad():
@@ -302,13 +319,13 @@ def evaluate_one_epoch():
                 if key not in stat_dict: stat_dict[key] = 0
                 stat_dict[key] += end_points[key].item()
 
-        batch_pred_map_cls = parse_predictions(end_points, CONFIG_DICT) 
-        batch_gt_map_cls = parse_groundtruths(end_points, CONFIG_DICT) 
+        batch_pred_map_cls = parse_predictions(end_points, CONFIG_DICT)
+        batch_gt_map_cls = parse_groundtruths(end_points, CONFIG_DICT)
         ap_calculator.step(batch_pred_map_cls, batch_gt_map_cls)
 
         # Dump evaluation results for visualization
         if FLAGS.dump_results and batch_idx == 0 and EPOCH_CNT %10 == 0:
-            MODEL.dump_results(end_points, DUMP_DIR, DATASET_CONFIG) 
+            MODEL.dump_results(end_points, DUMP_DIR, DATASET_CONFIG)
 
     # Log statistics
     TEST_VISUALIZER.log_scalars({key:stat_dict[key]/float(batch_idx+1) for key in stat_dict},
@@ -326,7 +343,7 @@ def evaluate_one_epoch():
 
 
 def train(start_epoch):
-    global EPOCH_CNT 
+    global EPOCH_CNT
     min_loss = 1e10
     loss = 0
     for epoch in range(start_epoch, MAX_EPOCH):

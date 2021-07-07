@@ -200,10 +200,6 @@ optimizer = torch.optim.SGD([
                             lr=BASE_LEARNING_RATE / LR_PRETRAIN_DIV,
                             weight_decay=FLAGS.weight_decay)
 
-for param_group in optimizer.param_groups:
-    print(param_group['lr'])
-
-stop
 
 # Load checkpoint if there is any
 it = -1 # for the initialize value of `LambdaLR` and `BNMomentumScheduler`
@@ -349,7 +345,7 @@ def train(start_epoch):
     for epoch in range(start_epoch, MAX_EPOCH):
         EPOCH_CNT = epoch
         log_string('**** EPOCH %03d ****' % (epoch))
-        log_string('Current learning rate: %f'%(get_current_lr(epoch)))
+        log_string('Current learning rates: %f and %f'%(get_current_lr(epoch)))
         log_string('Current BN decay momentum: %f'%(bnm_scheduler.lmbd(bnm_scheduler.last_epoch)))
         log_string(str(datetime.now()))
         # Reset numpy seed.

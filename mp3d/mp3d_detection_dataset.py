@@ -26,6 +26,14 @@ DC = MP3DDatasetConfig()
 MAX_NUM_OBJ = 64
 #MEAN_COLOR_RGB = np.array([109.8, 97.2, 83.8])
 
+# for 800 training samples
+#MAX_NUM_OBJ: 28
+#MAX_NUM_POINTS: 968435
+#MEAN_NUM_POINTS: 193136.24625
+#MEAN_RGB: [0.51826599 0.49850078 0.46754714]
+
+
+
 class MP3DDetectionDataset(Dataset):
 
     def __init__(self,

@@ -45,6 +45,7 @@ class MP3DDatasetConfig(object):
             'tv_monitor': np.array([1.079, 0.722, 0.217]),
 
             # NOTE: Attention for new assets dims where recorded with z up.
+            # has been converted to y is up here.
             'shoe': np.array([0.166, 0.19, 0.287]),
             'dietary_supp':  np.array([0.10, 0.137, 0.1]),
             'cartridge':  np.array([0.116, 0.148, 0.077]),

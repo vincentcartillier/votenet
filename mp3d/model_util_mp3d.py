@@ -83,7 +83,7 @@ class MP3DDatasetConfig(object):
             NOT USED.
         '''
         angle = angle%(2*np.pi)
-        raise NotImplementedError
+        return 0
 
 
 
@@ -91,7 +91,7 @@ class MP3DDatasetConfig(object):
         ''' Inverse function to angle2class.
 
         As ScanNet only has axis-alined boxes so angles are always 0. '''
-        return 0
+        return residual
 
     def size2class(self, size, type_name):
         ''' Convert 3D box size (l,w,h) to size class and size residual '''
@@ -116,6 +116,7 @@ class MP3DDatasetConfig(object):
         obb[0:3] = center
         obb[3:6] = box_size
         obb[6] = heading_angle*-1
+        #obb[6] = heading_angle
         return obb
 
 def rotate_aligned_boxes(input_boxes, rot_mat):

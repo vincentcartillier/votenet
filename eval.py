@@ -1,5 +1,5 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
-# 
+#
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
@@ -43,6 +43,7 @@ parser.add_argument('--nms_iou', type=float, default=0.25, help='NMS IoU thresho
 parser.add_argument('--conf_thresh', type=float, default=0.05, help='Filter out predictions with obj prob less than it. [default: 0.05]')
 parser.add_argument('--faster_eval', action='store_true', help='Faster evaluation by skippling empty bounding box removal.')
 parser.add_argument('--shuffle_dataset', action='store_true', help='Shuffle the dataset (random order).')
+parser.add_argument('--overfit', action='store_true', help='Overfit to 5 samples.')
 FLAGS = parser.parse_args()
 
 if FLAGS.use_cls_nms:
@@ -66,7 +67,7 @@ def log_string(out_str):
     DUMP_FOUT.flush()
     print(out_str)
 
-# Init datasets and dataloaders 
+# Init datasets and dataloaders
 def my_worker_init_fn(worker_id):
     np.random.seed(np.random.get_state()[1][0] + worker_id)
 
@@ -83,9 +84,31 @@ elif FLAGS.dataset == 'scannet':
     from scannet_detection_dataset import ScannetDetectionDataset, MAX_NUM_OBJ
     from model_util_scannet import ScannetDatasetConfig
     DATASET_CONFIG = ScannetDatasetConfig()
-    TEST_DATASET = ScannetDetectionDataset('val', num_points=NUM_POINT,
-        augment=False,
-        use_color=FLAGS.use_color, use_height=(not FLAGS.no_height))
+    if FLAGS.overfit:
+        val_split = 'train'
+    else:
+        val_split = 'val'
+    TEST_DATASET = ScannetDetectionDataset(val_split, 
+                                           num_points=NUM_POINT,
+                                           augment=False,
+                                           use_color=FLAGS.use_color, 
+                                           use_height=(not FLAGS.no_height),
+                                           overfit=FLAGS.overfit)
+elif FLAGS.dataset == 'mp3d':
+    sys.path.append(os.path.join(ROOT_DIR, 'mp3d'))
+    from mp3d_detection_dataset import MP3DDetectionDataset, MAX_NUM_OBJ
+    from model_util_mp3d import MP3DDatasetConfig
+    DATASET_CONFIG = MP3DDatasetConfig()
+    if FLAGS.overfit:
+        val_split = 'train'
+    else:
+        val_split = 'val'
+    TEST_DATASET = MP3DDetectionDataset(val_split,
+                                        num_points=NUM_POINT,
+                                        augment=False,
+                                        use_color=FLAGS.use_color,
+                                        use_height=(not FLAGS.no_height),
+                                        overfit=FLAGS.overfit)
 else:
     print('Unknown dataset %s. Exiting...'%(FLAGS.dataset))
     exit(-1)
@@ -115,7 +138,18 @@ net.to(device)
 criterion = MODEL.get_loss
 
 # Load the Adam optimizer
-optimizer = optim.Adam(net.parameters(), lr=0.001)
+#optimizer = optim.Adam(net.parameters(), lr=0.001)
+BASE_LEARNING_RATE = 0.001
+LR_PRETRAIN_DIV = 1.0
+
+custom_layers = ['pnet.conv3.weight', 'pnet.conv3.bias']
+optimizer = torch.optim.SGD([
+                                {'params': [param for name, param in net.named_parameters() if not name in custom_layers]},
+                                {'params': [param for name, param in net.named_parameters() if name in custom_layers],
+                                 'lr': BASE_LEARNING_RATE}
+                            ],
+                            lr=BASE_LEARNING_RATE / LR_PRETRAIN_DIV)
+
 
 # Load checkpoint if there is any
 if CHECKPOINT_PATH is not None and os.path.isfile(CHECKPOINT_PATH):
@@ -141,7 +175,7 @@ def evaluate_one_epoch():
             print('Eval batch: %d'%(batch_idx))
         for key in batch_data_label:
             batch_data_label[key] = batch_data_label[key].to(device)
-        
+
         # Forward pass
         inputs = {'point_clouds': batch_data_label['point_clouds']}
         with torch.no_grad():
@@ -158,12 +192,20 @@ def evaluate_one_epoch():
             if 'loss' in key or 'acc' in key or 'ratio' in key:
                 if key not in stat_dict: stat_dict[key] = 0
                 stat_dict[key] += end_points[key].item()
+        
+        # DEBUG
+        # DEBUG
+        # DEBUG
+        
+        # DEBUG
+        # DEBUG
+        # DEBUG
 
-        batch_pred_map_cls = parse_predictions(end_points, CONFIG_DICT) 
-        batch_gt_map_cls = parse_groundtruths(end_points, CONFIG_DICT) 
+        batch_pred_map_cls = parse_predictions(end_points, CONFIG_DICT)
+        batch_gt_map_cls = parse_groundtruths(end_points, CONFIG_DICT)
         for ap_calculator in ap_calculator_list:
             ap_calculator.step(batch_pred_map_cls, batch_gt_map_cls)
-    
+
         # Dump evaluation results for visualization
         if batch_idx == 0:
             MODEL.dump_results(end_points, DUMP_DIR, DATASET_CONFIG)

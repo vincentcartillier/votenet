@@ -27,7 +27,7 @@ MEAN_COLOR_RGB = np.array([109.8, 97.2, 83.8])
 class ScannetDetectionDataset(Dataset):
        
     def __init__(self, split_set='train', num_points=20000,
-        use_color=False, use_height=False, augment=False):
+        use_color=False, use_height=False, augment=False, overfit=False):
 
         self.data_path = os.path.join(BASE_DIR, 'scannet_train_detection_data')
         all_scan_names = list(set([os.path.basename(x)[0:12] \
@@ -49,10 +49,16 @@ class ScannetDetectionDataset(Dataset):
             print('illegal split name')
             return
         
+        self.overfit = overfit 
         self.num_points = num_points
         self.use_color = use_color        
         self.use_height = use_height
         self.augment = augment
+
+        if self.overfit:
+            self.scan_names.sort()
+            self.scan_names = self.scan_names[:1]
+            print(self.scan_names)
        
     def __len__(self):
         return len(self.scan_names)

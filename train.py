@@ -133,11 +133,20 @@ elif FLAGS.dataset == 'scannet':
     from model_util_scannet import ScannetDatasetConfig
     DATASET_CONFIG = ScannetDatasetConfig()
     TRAIN_DATASET = ScannetDetectionDataset('train', num_points=NUM_POINT,
-        augment=True,
-        use_color=FLAGS.use_color, use_height=(not FLAGS.no_height))
-    TEST_DATASET = ScannetDetectionDataset('val', num_points=NUM_POINT,
-        augment=False,
-        use_color=FLAGS.use_color, use_height=(not FLAGS.no_height))
+                                            augment=True,
+                                            use_color=FLAGS.use_color,
+                                            use_height=(not FLAGS.no_height),
+                                            overfit=FLAGS.overfit)
+    if FLAGS.overfit:
+        val_split = 'train'
+    else:
+        val_split = 'val'
+    TEST_DATASET = ScannetDetectionDataset(val_split,
+                                           num_points=NUM_POINT,
+                                           augment=False,
+                                           use_color=FLAGS.use_color,
+                                           use_height=(not FLAGS.no_height),
+                                           overfit=FLAGS.overfit)
 elif FLAGS.dataset == 'mp3d':
     sys.path.append(os.path.join(ROOT_DIR, 'mp3d'))
     from mp3d_detection_dataset import MP3DDetectionDataset, MAX_NUM_OBJ

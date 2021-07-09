@@ -63,7 +63,9 @@ class MP3DDetectionDataset(Dataset):
         self.overfit = overfit
 
         if self.overfit:
-            self.files = self.files[:8]
+            self.files.sort()
+            self.files = self.files[:1]
+            self.files = ['100_1310.h5']
             print(self.files)
 
     def __len__(self):
@@ -99,10 +101,18 @@ class MP3DDetectionDataset(Dataset):
 
         # convert PC to z is up.
         mesh_vertices[:,[0,1,2]] = mesh_vertices[:,[0,2,1]]
+        c_x = 0.5*(mesh_vertices[:,0].min()+\
+                   mesh_vertices[:,0].max())
+        c_y = 0.5*(mesh_vertices[:,1].min()+\
+                   mesh_vertices[:,1].max())
+        mesh_vertices[:,0] -= c_x
+        mesh_vertices[:,1] -= c_y
 
         # convert annotations to z is up.
         instance_bboxes[:,[0,1,2]] = instance_bboxes[:,[0,2,1]]
         instance_bboxes[:,[3,4,5]] = instance_bboxes[:,[3,5,4]]
+        instance_bboxes[:,0] -= c_x
+        instance_bboxes[:,1] -= c_y
 
         if not self.use_color:
             point_cloud = mesh_vertices[:,0:3] # do not use color for now
@@ -182,7 +192,7 @@ class MP3DDetectionDataset(Dataset):
             target_bboxes[0:instance_bboxes.shape[0], 3:6] - DC.mean_size_arr[instance_bboxes_sids,:]
 
         #TODO: update angle_classes + residuals
-        angle_residuals[0:instance_bboxes.shape[0]] = instance_bboxes[:,-2]
+        angle_residuals[0:instance_bboxes.shape[0]] = instance_bboxes[:,6]
 
         ret_dict = {}
         ret_dict['point_clouds'] = point_cloud.astype(np.float32)

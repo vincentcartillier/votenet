@@ -42,9 +42,17 @@ class MP3DDetectionDataset(Dataset):
                  use_color=False,
                  use_height=False,
                  augment=False,
-                 overfit=False):
-
-        self.root_data_path = os.path.join(BASE_DIR, 'votenet_training_data/')
+                 overfit=False,
+                 data_type='crop'):
+        
+        if data_type=='crop':
+            self.root_data_path = os.path.join(BASE_DIR,
+                                               'votenet_training_data_small_crops/')
+        elif data_type=='path':
+            self.root_data_path = os.path.join(BASE_DIR,
+                                               'votenet_training_data_small_paths/')
+        else:
+            raise ValueError()
 
         if split_set=='all':
             raise NotImplementedError
@@ -64,8 +72,8 @@ class MP3DDetectionDataset(Dataset):
 
         if self.overfit:
             self.files.sort()
-            self.files = self.files[:1]
-            self.files = ['100_1310.h5']
+            self.files = self.files[:8]
+            #self.files = ['scene0191_00']
             print(self.files)
 
     def __len__(self):
@@ -97,22 +105,49 @@ class MP3DDetectionDataset(Dataset):
         instance_labels = np.array(h5file['instance'], dtype=np.int32)
         semantic_labels = np.array(h5file['semantic'], dtype=np.int32)
         instance_bboxes = np.array(h5file['bboxes'], dtype=np.float32)
+        instance_bboxes = instance_bboxes[:,:8]
         h5file.close()
+
+        #scan_name = self.files[idx]        
+        #mesh_vertices = np.load(os.path.join(self.data_path, scan_name)+'_vert.npy')
+        #instance_labels = np.load(os.path.join(self.data_path, scan_name)+'_ins_label.npy')
+        #semantic_labels = np.load(os.path.join(self.data_path, scan_name)+'_sem_label.npy')
+        #instance_bboxes = np.load(os.path.join(self.data_path, scan_name)+'_bbox.npy')
+
+
+        # convert semantic labels back from nyu40
+        #semantic_labels[semantic_labels==5] = 0
+        #semantic_labels[semantic_labels==6] = 1
+        #semantic_labels[semantic_labels==4] = 3
+
+        #instance_bboxes[instance_bboxes[:,-1]==5,-1] = 0
+        #instance_bboxes[instance_bboxes[:,-1]==6,-1] = 1
+        #instance_bboxes[instance_bboxes[:,-1]==4,-1] = 3
+
+        #semantic_labels[semantic_labels==5] = 2
+        #semantic_labels[semantic_labels==6] = 3
+        #semantic_labels[semantic_labels==4] = 1
+
+        #instance_bboxes[instance_bboxes[:,-1]==5,-1] = 2
+        #instance_bboxes[instance_bboxes[:,-1]==6,-1] = 3
+        #instance_bboxes[instance_bboxes[:,-1]==4,-1] = 1
+
+
 
         # convert PC to z is up.
         mesh_vertices[:,[0,1,2]] = mesh_vertices[:,[0,2,1]]
-        c_x = 0.5*(mesh_vertices[:,0].min()+\
-                   mesh_vertices[:,0].max())
-        c_y = 0.5*(mesh_vertices[:,1].min()+\
-                   mesh_vertices[:,1].max())
-        mesh_vertices[:,0] -= c_x
-        mesh_vertices[:,1] -= c_y
+        # -- c_x = 0.5*(mesh_vertices[:,0].min()+\
+        # --            mesh_vertices[:,0].max())
+        # -- c_y = 0.5*(mesh_vertices[:,1].min()+\
+        # --            mesh_vertices[:,1].max())
+        # -- mesh_vertices[:,0] -= c_x
+        # -- mesh_vertices[:,1] -= c_y
 
         # convert annotations to z is up.
         instance_bboxes[:,[0,1,2]] = instance_bboxes[:,[0,2,1]]
         instance_bboxes[:,[3,4,5]] = instance_bboxes[:,[3,5,4]]
-        instance_bboxes[:,0] -= c_x
-        instance_bboxes[:,1] -= c_y
+        # -- instance_bboxes[:,0] -= c_x
+        # -- instance_bboxes[:,1] -= c_y
 
         if not self.use_color:
             point_cloud = mesh_vertices[:,0:3] # do not use color for now
@@ -172,7 +207,7 @@ class MP3DDetectionDataset(Dataset):
         point_votes = np.zeros([self.num_points, 3])
         point_votes_mask = np.zeros(self.num_points)
 
-        for i_instance in instance_bboxes[:,8]:
+        for i_instance in np.unique(instance_labels):            
             # find all points belong to that instance
             ind = np.where(instance_labels == i_instance)[0]
             # find the semantic label
@@ -185,12 +220,12 @@ class MP3DDetectionDataset(Dataset):
         point_votes = np.tile(point_votes, (1, 3)) # make 3 votes identical
 
         # NOTE: set size class as semantic class. Consider use size2class.
-        size_classes[0:instance_bboxes.shape[0]] = instance_bboxes[:,-2]
-        instance_bboxes_sids = instance_bboxes[:,-2]
+        size_classes[0:instance_bboxes.shape[0]] = instance_bboxes[:,-1]
+        instance_bboxes_sids = instance_bboxes[:,-1]
         instance_bboxes_sids = instance_bboxes_sids.astype(np.int)
         size_residuals[0:instance_bboxes.shape[0], :] = \
             target_bboxes[0:instance_bboxes.shape[0], 3:6] - DC.mean_size_arr[instance_bboxes_sids,:]
-
+        
         #TODO: update angle_classes + residuals
         angle_residuals[0:instance_bboxes.shape[0]] = instance_bboxes[:,6]
 
@@ -202,7 +237,7 @@ class MP3DDetectionDataset(Dataset):
         ret_dict['size_class_label'] = size_classes.astype(np.int64)
         ret_dict['size_residual_label'] = size_residuals.astype(np.float32)
         target_bboxes_semcls = np.zeros((MAX_NUM_OBJ))
-        target_bboxes_semcls[0:instance_bboxes.shape[0]] = instance_bboxes[:,-2]
+        target_bboxes_semcls[0:instance_bboxes.shape[0]] = instance_bboxes[:,-1]
         ret_dict['sem_cls_label'] = target_bboxes_semcls.astype(np.int64)
         ret_dict['box_label_mask'] = target_bboxes_mask.astype(np.float32)
         ret_dict['vote_label'] = point_votes.astype(np.float32)

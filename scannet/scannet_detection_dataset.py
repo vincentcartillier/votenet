@@ -158,7 +158,9 @@ class ScannetDetectionDataset(Dataset):
         size_classes[0:instance_bboxes.shape[0]] = class_ind
         size_residuals[0:instance_bboxes.shape[0], :] = \
             target_bboxes[0:instance_bboxes.shape[0], 3:6] - DC.mean_size_arr[class_ind,:]
-            
+         
+        angle_residuals[0:instance_bboxes.shape[0]] = instance_bboxes[:,-2]
+
         ret_dict = {}
         ret_dict['point_clouds'] = point_cloud.astype(np.float32)
         ret_dict['center_label'] = target_bboxes.astype(np.float32)[:,0:3]

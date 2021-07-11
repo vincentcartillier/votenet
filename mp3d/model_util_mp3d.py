@@ -15,6 +15,12 @@ class MP3DDatasetConfig(object):
         self.num_class = 15
         self.num_heading_bin = 1
         self.num_size_cluster = 15
+        
+        
+        #self.num_class = 18
+        #self.num_heading_bin = 1
+        #self.num_size_cluster = 18
+
 
         self.type2class = {'chair': 0,
                            'sofa': 1,
@@ -32,6 +38,11 @@ class MP3DDatasetConfig(object):
                            'figurine': 13,
                            'bag': 14
                           }
+        
+        #self.type2class = {'cabinet':0, 'bed':1, 'chair':2, 'sofa':3, 'table':4, 'door':5,
+        #    'window':6,'bookshelf':7,'picture':8, 'counter':9, 'desk':10, 'curtain':11,
+        #    'refrigerator':12, 'showercurtrain':13, 'toilet':14, 'sink':15, 'bathtub':16, 'garbagebin':17}  
+ 
 
         self.class2type = {self.type2class[t]:t for t in self.type2class}
 
@@ -66,6 +77,19 @@ class MP3DDatasetConfig(object):
         self.mean_size_arr = np.zeros((self.num_size_cluster, 3))
         for k,v in self.type2class.items():
             self.mean_size_arr[v] = self.type2mean_size[k]
+
+        # -- self.mean_size_arr = np.ones((self.num_size_cluster, 3))
+        # -- # -- mp3d
+        # -- self.mean_size_arr[3,:] = np.array([1.876858  , 1.84255952, 1.19315654])
+        # -- self.mean_size_arr[0,:] = np.array([0.61327999, 0.61486087, 0.71827014])
+        # -- self.mean_size_arr[1,:] = np.array([1.39550063, 1.51215451, 0.83443565])
+        
+        # -- scannet
+        #self.mean_size_arr[1,:] = np.array([1.876858  , 1.84255952, 1.19315654])
+        #self.mean_size_arr[2,:] = np.array([0.61327999, 0.61486087, 0.71827014])
+        #self.mean_size_arr[3,:] = np.array([1.39550063, 1.51215451, 0.83443565])
+
+
 
         self.type_mean_size = {}
         for i in range(self.num_size_cluster):

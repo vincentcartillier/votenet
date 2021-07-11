@@ -46,7 +46,7 @@ class ScannetDatasetConfig(object):
         ''' Inverse function to angle2class.
         
         As ScanNet only has axis-alined boxes so angles are always 0. '''
-        return 0
+        return residual
 
     def size2class(self, size, type_name):
         ''' Convert 3D box size (l,w,h) to size class and size residual '''

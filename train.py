@@ -65,6 +65,7 @@ parser.add_argument('--use_sunrgbd_v2', action='store_true', help='Use V2 box la
 parser.add_argument('--overwrite', action='store_true', help='Overwrite existing log and dump folders.')
 parser.add_argument('--dump_results', action='store_true', help='Dump results.')
 parser.add_argument('--overfit', action='store_true', help='Overfit to 5 samples.')
+parser.add_argument('--data_type', type=str, default='crop', help='Type of data sample to use')
 FLAGS = parser.parse_args()
 
 # ------------------------------------------------------------------------- GLOBAL CONFIG BEG
@@ -72,7 +73,7 @@ BATCH_SIZE = FLAGS.batch_size
 NUM_POINT = FLAGS.num_point
 MAX_EPOCH = FLAGS.max_epoch
 BASE_LEARNING_RATE = FLAGS.learning_rate
-LR_PRETRAIN_DIV = 1.0
+LR_PRETRAIN_DIV = 1.2
 BN_DECAY_STEP = FLAGS.bn_decay_step
 BN_DECAY_RATE = FLAGS.bn_decay_rate
 LR_DECAY_STEPS = [int(x) for x in FLAGS.lr_decay_steps.split(',')]
@@ -133,7 +134,7 @@ elif FLAGS.dataset == 'scannet':
     from model_util_scannet import ScannetDatasetConfig
     DATASET_CONFIG = ScannetDatasetConfig()
     TRAIN_DATASET = ScannetDetectionDataset('train', num_points=NUM_POINT,
-                                            augment=True,
+                                            augment=False,
                                             use_color=FLAGS.use_color,
                                             use_height=(not FLAGS.no_height),
                                             overfit=FLAGS.overfit)
@@ -154,10 +155,11 @@ elif FLAGS.dataset == 'mp3d':
     DATASET_CONFIG = MP3DDatasetConfig()
     TRAIN_DATASET = MP3DDetectionDataset('train',
                                          num_points=NUM_POINT,
-                                         augment=True,
+                                         augment=False,
                                          use_color=FLAGS.use_color,
                                          use_height=(not FLAGS.no_height),
-                                         overfit=FLAGS.overfit)
+                                         overfit=FLAGS.overfit,
+                                         data_type=FLAGS.data_type)
     if FLAGS.overfit:
         val_split = 'train'
     else:
@@ -167,7 +169,8 @@ elif FLAGS.dataset == 'mp3d':
                                         augment=False,
                                         use_color=FLAGS.use_color,
                                         use_height=(not FLAGS.no_height),
-                                        overfit=FLAGS.overfit)
+                                        overfit=FLAGS.overfit,
+                                        data_type=FLAGS.data_type)
 else:
     print('Unknown dataset %s. Exiting...'%(FLAGS.dataset))
     exit(-1)

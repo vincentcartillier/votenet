@@ -44,6 +44,7 @@ parser.add_argument('--conf_thresh', type=float, default=0.05, help='Filter out 
 parser.add_argument('--faster_eval', action='store_true', help='Faster evaluation by skippling empty bounding box removal.')
 parser.add_argument('--shuffle_dataset', action='store_true', help='Shuffle the dataset (random order).')
 parser.add_argument('--overfit', action='store_true', help='Overfit to 5 samples.')
+parser.add_argument('--data_type', type=str, default='crop', help='Type of data sample to use')
 FLAGS = parser.parse_args()
 
 if FLAGS.use_cls_nms:
@@ -108,7 +109,8 @@ elif FLAGS.dataset == 'mp3d':
                                         augment=False,
                                         use_color=FLAGS.use_color,
                                         use_height=(not FLAGS.no_height),
-                                        overfit=FLAGS.overfit)
+                                        overfit=FLAGS.overfit,
+                                        data_type=FLAGS.data_type)
 else:
     print('Unknown dataset %s. Exiting...'%(FLAGS.dataset))
     exit(-1)

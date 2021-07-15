@@ -51,15 +51,22 @@ class MP3DDetectionDataset(Dataset):
         elif data_type=='path':
             self.root_data_path = os.path.join(BASE_DIR,
                                                'votenet_training_data_small_paths/')
+        elif data_type=='expe_0':
+            self.root_data_path = os.path.join(BASE_DIR,
+                                               'expe_0/')
         else:
             raise ValueError()
 
         if split_set=='all':
             raise NotImplementedError
         elif split_set in ['train', 'val', 'test']:
-            self.data_path = os.path.join(self.root_data_path,
-                                          split_set,
-                                          'votenet_inputs')
+            if 'expe' in data_type:
+                self.data_path = os.path.join(self.root_data_path,
+                                              'votenet_inputs')
+            else:
+                self.data_path = os.path.join(self.root_data_path,
+                                              split_set,
+                                              'votenet_inputs')
             self.files = os.listdir(self.data_path)
         else:
             raise NotImplementedError

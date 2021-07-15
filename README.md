@@ -103,3 +103,17 @@ votenet is relased under the MIT License. See the [LICENSE file](https://arxiv.o
 
 ## Change log
 10/20/2019: Fixed a bug of the 3D interpolation customized ops (corrected gradient computation). Re-training the model after the fix slightly improves mAP (less than 1 point).
+
+
+# 3D-SMNet
+
+eval on full environments:
+
+ * convert the environments to VoteNet data format. run from 3D-SMNet folder
+ ``` python make_data/make_convert_episode_to_votenet_format.py --config data/experiment/expe_0/experiment_configs.json ```
+
+ * symlink the data under ```votenet/mp3d/```
+
+ * run for eval:
+ ``` python eval.py --dataset mp3d --data_type expe_0 --checkpoint_path log_mp3d_short_crops/checkpoint.tar --dump_dir eval_expe_0 --cluster_sampling seed_fps --use_3d_nms --use_cls_nms --per_class_proposal --num_point 120000
+ ```
